@@ -1,0 +1,155 @@
+---
+title: "Assignment 1"
+output: html_document
+---
+
+## Loading and preprocessing the data
+Start by unzipping the activity.zip into a file
+
+
+```r
+filename <- unzip('activity.zip', overwrite = T, exdir = tempdir())
+```
+
+Next read the data and inform what type of strings should be considered as NA
+
+
+```r
+data <- read.csv(filename, na.strings=c("NA", "NULL"))
+```
+
+## Mean total number of steps taken per day
+The content of the data consists of a number of steps taken on each day in intervals of 5 minutes, therefor to calculate the mean and total number of steps per day, the data should be summarized per day. The days are considered to be factors but that is good enough for the moment.
+
+
+```r
+totalStepsPerDay <- aggregate( data$steps, list(data$date), sum)
+```
+
+Create a histogram which will show the number of days that number of steps were taken. Since a simple histogram will be a bit too course grained, I want to show the intervals of 1000 steps per day, therefor I have to get the max first and then create the histogram based on this
+
+
+```r
+maxStepsPerDay <- max(totalStepsPerDay$x, na.rm = T)
+hist(totalStepsPerDay$x, breaks = seq(0, maxStepsPerDay + 1000, by = 1000), main = 'Overview steps per day', xlab = ' Steps per day')
+```
+
+![plot of chunk unnamed-chunk-4](figure/unnamed-chunk-4-1.png) 
+
+## Average daily activity
+The mean and the average of number of steps per day are calculated is interpreted by me, as count the total steps per day, resulting in one value per day, and then of all these values calculate the mean and the median.
+
+```r
+mean(totalStepsPerDay$x, na.rm = T)
+```
+
+```
+## [1] 10766.19
+```
+
+```r
+median(totalStepsPerDay$x, na.rm = T)
+```
+
+```
+## [1] 10765
+```
+Remove all the observations that have value NA so they wont interfer with the mean.
+
+To find the average daily activity, all steps should be summarized per interval and not per date. 
+
+```r
+dataWithoutNA <- na.omit(data)
+meanStepsPerInterval <- aggregate(dataWithoutNA$steps, list(dataWithoutNA$interval), mean)
+plot(meanStepsPerInterval, type = "l")
+```
+
+![plot of chunk unnamed-chunk-6](figure/unnamed-chunk-6-1.png) 
+
+Hmmm, looking at the graph the max seems to be somewhere around 800, but where exactly? Lets ask the which.max function
+
+```r
+busiestInterval <- meanStepsPerInterval[ which.max(meanStepsPerInterval$x),]
+```
+
+so that's at 835, 206.1698113, and that seems to be correct looking at the graph
+
+## Missing values
+Reporting for the number of row's that contain a NA value in them. Create a new subset consisting of all the data where a row contains a na value. This can be done by the is.na function, then using that new data frame to call the nrow method
+
+```r
+nrow(data[is.na(data),])
+```
+
+```
+## [1] 2304
+```
+
+
+I want to replace the missing values with the mean for the intervals, so that's back to the meanStepsPerInterval. Look at all the columns and replace the missing step's by a lookup into this meanStepsPerInterval. 
+
+```r
+updated <- data
+updated$steps <- ifelse(is.na(updated$steps), meanStepsPerInterval[ match(updated$interval, meanStepsPerInterval$Group.1), ]$x, updated$steps)
+```
+
+And recalculate the totalSteps per day (which will be higher, since we added the mean for each missing value)
+
+```r
+totalStepsPerDayUpdated <- aggregate( updated$steps, list(updated$date), sum)
+maxStepsPerDayUpdated <- max(totalStepsPerDayUpdated$x, na.rm = T)
+hist(totalStepsPerDayUpdated$x, breaks = seq(0, maxStepsPerDayUpdated + 1000, by = 1000), main = 'Overview steps per day', xlab = ' Steps per day with replacing NA by the mean per interval')
+```
+
+![plot of chunk unnamed-chunk-10](figure/unnamed-chunk-10-1.png) 
+
+```r
+mean(totalStepsPerDayUpdated$x)
+```
+
+```
+## [1] 10766.19
+```
+
+```r
+median(totalStepsPerDayUpdated$x)
+```
+
+```
+## [1] 10766.19
+```
+
+Since I added the means for the missing values, these will not have changed. Yet the median has changed because a lot of mean values were added, the median has changed to the mean.
+
+## Difference for weekends and non-weekends
+For the data to tell anything about weekends or non-weekends, the data should be changed to dates. This can be done using
+
+```r
+data$date <- as.Date(data$date, format="%Y-%m-%d")
+```
+
+And then assign the weekend or weekday as factor, giving the fact that saturday and sunday are the days of the weekend
+
+```r
+data$day <- factor(ifelse(as.POSIXlt(data$date)$wday == 6 | as.POSIXlt(data$date)$wday == 7, "weekend", "weekday"))
+```
+
+Next get the means by interval per kind of weekday
+
+```r
+dataWithoutNA <- na.omit(data)
+meanData <- aggregate(dataWithoutNA$steps, list(dataWithoutNA$interval, dataWithoutNA$day), mean)
+names(meanData) <- c("interval", "day", "numberOfSteps")
+```
+
+And create the plot
+
+```r
+library(ggplot2)
+g <- ggplot(meanData, aes(x=interval, y=numberOfSteps)) 
+g <- g + geom_line()
+g <- g + facet_wrap(~ day, ncol = 1)
+g
+```
+
+![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-1.png) 
