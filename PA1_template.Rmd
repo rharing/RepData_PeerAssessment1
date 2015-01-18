@@ -25,14 +25,14 @@ totalStepsPerDay <- aggregate( data$steps, list(data$date), sum)
 
 Create a histogram which will show the number of days that number of steps were taken. Since a simple histogram will be a bit too course grained, I want to show the intervals of 1000 steps per day, therefor I have to get the max first and then create the histogram based on this
 
-```{r, echo=TRUE}
+```{r}
 maxStepsPerDay <- max(totalStepsPerDay$x, na.rm = T)
 hist(totalStepsPerDay$x, breaks = seq(0, maxStepsPerDay + 1000, by = 1000), main = 'Overview steps per day', xlab = ' Steps per day')
 ```
 
 ## Average daily activity
 The mean and the average of number of steps per day are calculated is interpreted by me, as count the total steps per day, resulting in one value per day, and then of all these values calculate the mean and the median.
-```{r, echo = TRUE}
+```{r}
 mean(totalStepsPerDay$x, na.rm = T)
 median(totalStepsPerDay$x, na.rm = T)
 
@@ -40,7 +40,7 @@ median(totalStepsPerDay$x, na.rm = T)
 Remove all the observations that have value NA so they wont interfer with the mean.
 
 To find the average daily activity, all steps should be summarized per interval and not per date. 
-```{r, echo=TRUE}
+```{r}
 dataWithoutNA <- na.omit(data)
 meanStepsPerInterval <- aggregate(dataWithoutNA$steps, list(dataWithoutNA$interval), mean)
 plot(meanStepsPerInterval, type = "l")
@@ -51,23 +51,23 @@ Hmmm, looking at the graph the max seems to be somewhere around 800, but where e
 busiestInterval <- meanStepsPerInterval[ which.max(meanStepsPerInterval$x),]
 ```
 
-so that's at `r busiestInterval`, and that seems to be correct looking at the graph
+so that's at `r busiestInterval$Group.1`, with a value of `r busiestInterval$x` and that seems to be correct looking at the graph
 
 ## Missing values
 Reporting for the number of row's that contain a NA value in them. Create a new subset consisting of all the data where a row contains a na value. This can be done by the is.na function, then using that new data frame to call the nrow method
-```{r, echo=TRUE}
+```{r}
 nrow(data[is.na(data),])
 ```
 
 
 I want to replace the missing values with the mean for the intervals, so that's back to the meanStepsPerInterval. Look at all the columns and replace the missing step's by a lookup into this meanStepsPerInterval. 
-```{r, echo=TRUE}
+```{r}
 updated <- data
 updated$steps <- ifelse(is.na(updated$steps), meanStepsPerInterval[ match(updated$interval, meanStepsPerInterval$Group.1), ]$x, updated$steps)
 ```
 
 And recalculate the totalSteps per day (which will be higher, since we added the mean for each missing value)
-```{r, echo=TRUE}
+```{r}
 totalStepsPerDayUpdated <- aggregate( updated$steps, list(updated$date), sum)
 maxStepsPerDayUpdated <- max(totalStepsPerDayUpdated$x, na.rm = T)
 hist(totalStepsPerDayUpdated$x, breaks = seq(0, maxStepsPerDayUpdated + 1000, by = 1000), main = 'Overview steps per day', xlab = ' Steps per day with replacing NA by the mean per interval')
@@ -79,27 +79,28 @@ Since I added the means for the missing values, these will not have changed. Yet
 
 ## Difference for weekends and non-weekends
 For the data to tell anything about weekends or non-weekends, the data should be changed to dates. This can be done using
-```{r, echo=TRUE}
+```{r}
 data$date <- as.Date(data$date, format="%Y-%m-%d")
 ```
 
 And then assign the weekend or weekday as factor, giving the fact that saturday and sunday are the days of the weekend
-```{r, echo=TRUE}
+```{r}
 data$day <- factor(ifelse(as.POSIXlt(data$date)$wday == 6 | as.POSIXlt(data$date)$wday == 7, "weekend", "weekday"))
 ```
 
 Next get the means by interval per kind of weekday
-```{r, echo=TRUE}
+```{r}
 dataWithoutNA <- na.omit(data)
 meanData <- aggregate(dataWithoutNA$steps, list(dataWithoutNA$interval, dataWithoutNA$day), mean)
 names(meanData) <- c("interval", "day", "numberOfSteps")
 ```
 
 And create the plot
-```{r, echo=TRUE}
+```{r}
 library(ggplot2)
 g <- ggplot(meanData, aes(x=interval, y=numberOfSteps)) 
 g <- g + geom_line()
 g <- g + facet_wrap(~ day, ncol = 1)
+g <- g + ylab("Number of steps")
 g
 ```
